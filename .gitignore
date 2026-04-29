@@ -1,0 +1,11 @@
+﻿.venv/
+__pycache__/
+*.pyc
+outputs/checkpoints/
+outputs/data/
+outputs/figures/
+outputs/tables/
+outputs/logs/
+!outputs/.gitkeep
+.ipynb_checkpoints/
+.DS_Store
