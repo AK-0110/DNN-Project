@@ -33,7 +33,7 @@ model:
 
 # ── Hard-label pre-training (CIFAR-10, 50k images) ───────────────────────────
 pretrain:
-  epochs: 1
+  epochs: 30
   optimizer:    "sgd"
   lr:           0.1
   weight_decay: 5.0e-4
@@ -51,3 +51,7 @@ train:
   warmup_epochs:            5
   early_stopping_patience:  10
   amp:                      true    # mixed-precision; set false if no CUDA GPU
+
+# ── Evaluation ────────────────────────────────────────────────────────────────
+eval:
+  precision_at_k: [100, 200, 500]
