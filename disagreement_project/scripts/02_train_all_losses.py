@@ -102,9 +102,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--include-emd", action="store_true")
     ap.add_argument("--include-cos", action="store_true")
+    ap.add_argument("--epochs", type=int, default=None, help="Override train and pretrain epochs")
+    ap.add_argument("--batch-size", type=int, default=None, help="Override batch size")
     args = ap.parse_args()
 
     cfg = load_config(ROOT / "configs" / "default.yaml")
+    if args.epochs is not None:
+        cfg["train"]["epochs"] = args.epochs
+        cfg["pretrain"]["epochs"] = args.epochs
+    if args.batch_size is not None:
+        cfg["train"]["batch_size"] = args.batch_size
+        
     set_seed(cfg["seed"], deterministic=cfg["deterministic"])
     ensure_dirs(cfg)
     device = get_device()
