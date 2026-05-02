@@ -52,7 +52,7 @@ pip install -r requirements.txt
 Two datasets are used together:
 
 * **CIFAR-10** — 50,000 train + 10,000 test images, 32×32, hard labels. Downloaded automatically by torchvision.
-* **CIFAR-10H** — 10,000 soft-label distributions, one per CIFAR-10 *test* image, each from ~50 human annotators. The file used is `cifar10h-probs.npy` (shape `(10000, 10)`, rows sum to 1). Download once from the [CIFAR-10H repo](https://github.com/jcpeterson/cifar-10h) and place it at `outputs/data/cifar10h-probs.npy`. The data prep script will check for it and tell you what to do if it is missing.
+* **CIFAR-10H** — 10,000 soft-label distributions, one per CIFAR-10 *test* image, each from ~50 human annotators. The file used is `cifar10h-probs.npy` (shape `(10000, 10)`, rows sum to 1). Download once from the [CIFAR-10H repo](https://github.com/jcpeterson/cifar-10h) and place it at `data/cifar10h-probs.npy`. The data prep script will check for it and tell you what to do if it is missing.
 
 The 10,000 CIFAR-10H images are split (with a fixed seed) into:
 
