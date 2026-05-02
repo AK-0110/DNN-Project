@@ -8,8 +8,8 @@ deterministic: true          # enables cudnn.deterministic + use_deterministic_a
 
 # ── File paths ───────────────────────────────────────────────────────────────
 paths:
-  data_root:      "outputs/data"
-  cifar10h_probs: "outputs/data/cifar10h-probs.npy"
+  data_root:      "data"
+  cifar10h_probs: "data/cifar10h-probs.npy"
   checkpoints:    "outputs/checkpoints"
   figures:        "outputs/figures"
   tables:         "outputs/tables"
@@ -33,7 +33,7 @@ model:
 
 # ── Hard-label pre-training (CIFAR-10, 50k images) ───────────────────────────
 pretrain:
-  epochs:       30
+  epochs: 1
   optimizer:    "sgd"
   lr:           0.1
   weight_decay: 5.0e-4

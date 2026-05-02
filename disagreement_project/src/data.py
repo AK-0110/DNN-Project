@@ -59,7 +59,7 @@ def get_eval_transform() -> transforms.Compose:
 def cifar10_train_dataset(data_root: str, transform=None) -> datasets.CIFAR10:
     """Standard CIFAR-10 train set with hard labels."""
     return datasets.CIFAR10(
-        root=data_root, train=True, download=True,
+        root=data_root, train=True, download=False,
         transform=transform if transform is not None else get_train_transform(),
     )
 
@@ -83,7 +83,7 @@ class CIFAR10HSoft(Dataset):
         transform=None,
     ):
         self.cifar = datasets.CIFAR10(
-            root=data_root, train=False, download=True, transform=None
+            root=data_root, train=False, download=False, transform=None
         )
         probs_path = Path(cifar10h_probs_path)
         if not probs_path.exists():

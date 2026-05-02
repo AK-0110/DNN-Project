@@ -9,3 +9,4 @@ outputs/logs/
 !outputs/.gitkeep
 .ipynb_checkpoints/
 .DS_Store
+disagreement_project/data

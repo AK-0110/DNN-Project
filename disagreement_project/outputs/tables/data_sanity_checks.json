@@ -1,0 +1,12 @@
+{
+  "shape": [
+    10000,
+    10
+  ],
+  "min_value": 0.0,
+  "max_value": 1.0,
+  "min_row_sum": 0.9999998807907104,
+  "max_row_sum": 1.0000001192092896,
+  "n_rows_off_by_more_than_atol": 0,
+  "atol": 0.0001
+}
