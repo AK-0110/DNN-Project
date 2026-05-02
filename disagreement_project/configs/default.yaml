@@ -1,0 +1,53 @@
+# configs/default.yaml
+# Master configuration for the CIFAR-10H disagreement project.
+# All scripts read this file via src.utils.load_config().
+
+# ── Reproducibility ──────────────────────────────────────────────────────────
+seed: 42
+deterministic: true          # enables cudnn.deterministic + use_deterministic_algorithms
+
+# ── File paths ───────────────────────────────────────────────────────────────
+paths:
+  data_root:      "outputs/data"
+  cifar10h_probs: "outputs/data/cifar10h-probs.npy"
+  checkpoints:    "outputs/checkpoints"
+  figures:        "outputs/figures"
+  tables:         "outputs/tables"
+  logs:           "outputs/logs"
+
+# ── Dataset split (must sum to ≤ 10000) ──────────────────────────────────────
+split:
+  n_train: 6000
+  n_val:   2000
+  n_test:  2000
+
+# ── Data augmentation ─────────────────────────────────────────────────────────
+augment:
+  random_crop_padding:    4
+  random_horizontal_flip: true
+
+# ── Model architecture ────────────────────────────────────────────────────────
+model:
+  head: "linear"          # one of: linear | mlp | temperature
+  init: "hard_pretrain"   # one of: random | imagenet | hard_pretrain
+
+# ── Hard-label pre-training (CIFAR-10, 50k images) ───────────────────────────
+pretrain:
+  epochs:       30
+  optimizer:    "sgd"
+  lr:           0.1
+  weight_decay: 5.0e-4
+  momentum:     0.9
+  scheduler:    "cosine"
+
+# ── Soft-label distribution training ─────────────────────────────────────────
+train:
+  epochs:                   60
+  batch_size:               128
+  optimizer:                "adamw"
+  lr:                       3.0e-4
+  weight_decay:             1.0e-4
+  scheduler:                "cosine"
+  warmup_epochs:            5
+  early_stopping_patience:  10
+  amp:                      true    # mixed-precision; set false if no CUDA GPU

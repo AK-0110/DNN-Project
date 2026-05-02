@@ -142,9 +142,14 @@ def sanity_check_probs(probs: np.ndarray, atol: float = 1e-4) -> dict:
 
 
 def shannon_entropy(probs: np.ndarray, eps: float = 1e-12) -> np.ndarray:
-    """Per-row entropy in bits. probs shape (N, C)."""
-    p = np.clip(probs, eps, 1.0)
-    return -np.sum(probs * np.log2(p), axis=1)
+    """Per-row entropy in bits. probs shape (N, C).
+
+    Uses the same clipped array `p` in both the weight and the log so that
+    the 0·log2(0)=0 convention is applied consistently (avoids BUG-6:
+    mixing raw zeros with clipped-log values).
+    """
+    p = np.clip(probs, eps, 1.0)        # clamp once
+    return -np.sum(p * np.log2(p), axis=1)  # both sides use clamped p
 
 
 def per_class_average_entropy(probs: np.ndarray, hard_labels: np.ndarray) -> np.ndarray:

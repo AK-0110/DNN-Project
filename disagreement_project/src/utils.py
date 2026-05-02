@@ -16,7 +16,11 @@ import yaml
 def set_seed(seed: int, deterministic: bool = True) -> None:
     """Seed everything for reproducibility.
 
-    When deterministic=True, cuDNN benchmark is disabled (slower but reproducible).
+    When deterministic=True:
+      - cuDNN benchmark is disabled (slower but reproducible).
+      - CUBLAS_WORKSPACE_CONFIG is set and torch.use_deterministic_algorithms
+        is enabled so that atomic CUDA ops (e.g. scatter_add in embedding
+        layers) are also deterministic on PyTorch ≥ 1.11.
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -24,8 +28,15 @@ def set_seed(seed: int, deterministic: bool = True) -> None:
     torch.cuda.manual_seed_all(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     if deterministic:
+        # Required for cuBLAS determinism on CUDA ≥ 10.2
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
+        try:
+            torch.use_deterministic_algorithms(True, warn_only=True)
+        except AttributeError:
+            # torch < 1.8 does not have this function
+            pass
     else:
         torch.backends.cudnn.benchmark = True
 

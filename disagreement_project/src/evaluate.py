@@ -25,8 +25,13 @@ EPS = 1e-12
 # ---------------------------------------------------------------------------
 
 def _entropy_bits(probs: np.ndarray) -> np.ndarray:
-    p = np.clip(probs, EPS, 1.0)
-    return -np.sum(probs * np.log2(p), axis=-1)
+    """Per-row entropy in bits.
+
+    Clamps once and uses the same array in both positions so that the
+    0·log2(0)=0 convention is applied consistently (BUG-7 fix).
+    """
+    p = np.clip(probs, EPS, 1.0)   # clamp once
+    return -np.sum(p * np.log2(p), axis=-1)  # both sides use clamped p
 
 
 def kl_per_image(p: np.ndarray, q: np.ndarray) -> np.ndarray:

@@ -57,11 +57,11 @@ class JSDLoss(nn.Module):
     """
     def forward(self, logits: torch.Tensor, target_probs: torch.Tensor) -> torch.Tensor:
         q = F.softmax(logits, dim=-1)
-        p = target_probs.clamp(min=EPS)
-        m = 0.5 * (p + q)
-        # KL(p || m) and KL(q || m) using natural log
+        p = target_probs                        # keep raw probs for mixture midpoint
+        m = 0.5 * (p + q)                      # mixture uses unshifted p and q
+        # clamp only when computing logs to avoid log(0)
         log_m = torch.log(m.clamp(min=EPS))
-        log_p = torch.log(p)
+        log_p = torch.log(p.clamp(min=EPS))
         log_q = torch.log(q.clamp(min=EPS))
         kl_pm = (p * (log_p - log_m)).sum(dim=-1)
         kl_qm = (q * (log_q - log_m)).sum(dim=-1)
@@ -133,19 +133,28 @@ class CompositeDisagreementLoss(nn.Module):
                   This corrects for class imbalance: most CIFAR-10H images
                   have very low entropy.
     """
-    def __init__(self, lambda_h: float = 0.5, gamma: float = 1.0):
+    def __init__(self, lambda_h: float = 0.5, gamma: float = 1.0,
+                 num_classes: int = 10):
         super().__init__()
         self.lambda_h = lambda_h
         self.gamma = gamma
+        # Precompute max entropy (log2 C) as a Python float — avoids a CPU
+        # tensor allocation and device sync on every forward pass (BUG-4 fix).
+        import math
+        self.H_max: float = math.log2(num_classes)
 
     @staticmethod
     def _entropy_bits(probs: torch.Tensor) -> torch.Tensor:
-        # log base 2; matches the entropy units used elsewhere
-        return -(probs * torch.log2(probs.clamp(min=EPS))).sum(dim=-1)
+        # Clamp once and use the same clamped tensor in both places so that
+        # the 0·log(0)=0 convention is handled consistently (BUG-7 analogue).
+        p_safe = probs.clamp(min=EPS)
+        return -(p_safe * torch.log2(p_safe)).sum(dim=-1)
 
     def forward(self, logits: torch.Tensor, target_probs: torch.Tensor) -> torch.Tensor:
-        log_q = F.log_softmax(logits, dim=-1)
-        q = log_q.exp()
+        # Use F.softmax directly — numerically identical to log_softmax.exp()
+        # but avoids an extra fp16 rounding step under AMP (BUG-3 fix).
+        q = F.softmax(logits, dim=-1)
+        log_q = torch.log(q.clamp(min=EPS))
         p = target_probs
 
         # KL(p || q) per sample
@@ -159,8 +168,7 @@ class CompositeDisagreementLoss(nn.Module):
 
         # focal weight: emphasises images where true entropy is large.
         # weight in [1, 1 + gamma * (H_p / H_max)]
-        H_max = float(torch.log2(torch.tensor(p.size(-1), dtype=p.dtype)))
-        focal_w = 1.0 + self.gamma * (H_p / H_max)
+        focal_w = 1.0 + self.gamma * (H_p / self.H_max)
 
         loss_per = focal_w * (kl_per + self.lambda_h * entropy_err)
         return loss_per.mean()

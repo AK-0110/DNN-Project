@@ -185,4 +185,11 @@ def init_from_imagenet_resnet18(model: DisagreementModel, strict: bool = False) 
         else:
             skipped += 1
     model.backbone.load_state_dict(own, strict=False)
+    stem_loaded = "conv1.weight" in src and own["conv1.weight"].shape == src.get("conv1.weight", torch.empty(0)).shape
     print(f"[init_from_imagenet] matched={matched} skipped={skipped}")
+    if not stem_loaded:
+        print(
+            "[init_from_imagenet] WARNING: conv1 (stem) shape mismatch — "
+            "ImageNet stem is 7×7 but CIFAR stem is 3×3. "
+            "The stem is RANDOMLY INITIALIZED; only layer1-4 come from ImageNet."
+        )
