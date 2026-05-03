@@ -35,7 +35,9 @@ def resample_annotators(probs: np.ndarray, fraction: float, total_annotators: in
     rng = np.random.default_rng(seed)
     out = np.zeros_like(probs)
     for i in range(probs.shape[0]):
-        counts = rng.multinomial(n_per_image, probs[i])
+        p = probs[i].astype(np.float64)
+        p = p / p.sum()
+        counts = rng.multinomial(n_per_image, p)
         out[i] = counts / counts.sum()
     return out
 
