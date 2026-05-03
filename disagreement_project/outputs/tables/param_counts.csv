@@ -1,0 +1,4 @@
+variant,trainable_params
+resnet18_cifar + linear_head,11173962
+resnet18_cifar + mlp_head,11302730
+resnet18_cifar + temperature_head,11173963
