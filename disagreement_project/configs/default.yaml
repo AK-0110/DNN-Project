@@ -55,3 +55,12 @@ train:
 # ── Evaluation ────────────────────────────────────────────────────────────────
 eval:
   precision_at_k: [100, 200, 500]
+
+# ── Robustness ────────────────────────────────────────────────────────────────
+annotator_subsample:
+  fractions: [1.0, 0.8, 0.6, 0.4, 0.2, 0.1]
+  approx_annotators_per_image: 50
+
+corruptions:
+  severities: [1, 2, 3, 4, 5]
+  types: ["gaussian_noise", "gaussian_blur", "contrast"]
