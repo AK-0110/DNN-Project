@@ -1,130 +1,117 @@
 # Predicting Human Annotator Disagreement on CIFAR-10H
 
-This project builds a deep neural network that predicts the **full human annotator label distribution** for CIFAR-10 images, rather than predicting a single hard class. The model learns what makes images inherently ambiguous.
+---
 
-## Project structure
 
-```
-disagreement_project/
-├── README.md                       <- you are here
-├── requirements.txt
-├── src/
-│   ├── data.py                     <- CIFAR-10 + CIFAR-10H loading, splits, sanity checks
-│   ├── models.py                   <- ResNet-18 (CIFAR-adapted) + alternative heads
-│   ├── losses.py                   <- KL, JSD, cosine, EMD, custom composite loss
-│   ├── train.py                    <- training loop with early stopping
-│   ├── evaluate.py                 <- distribution metrics, entropy correlations, Precision@K
-│   ├── explain.py                  <- Grad-CAM, failure-case analysis
-│   ├── robustness.py               <- annotator subsampling, corruptions, class-wise eval
-│   ├── viz.py                      <- all plotting helpers
-│   └── utils.py                    <- seeding, checkpoints, config helpers
-├── scripts/
-│   ├── 01_prepare_data.py          <- downloads CIFAR-10/10H, runs sanity checks, makes plots
-│   ├── 02_train_all_losses.py      <- trains the model under each loss function
-│   ├── 03_run_ablations.py         <- ablation studies (init, head, training strategy)
-│   ├── 04_evaluate_all.py          <- core performance evaluation + comparison table
-│   ├── 05_robustness.py            <- robustness checks
-│   └── 06_explain.py               <- Grad-CAM + failure cases + manual inspection grid
-├── configs/
-│   └── default.yaml                <- single config file controlling all runs
-├── notebooks/
-│   └── walkthrough.ipynb           <- end-to-end notebook (optional, mirrors scripts)
-└── outputs/                        <- created at runtime: checkpoints, figures, tables
-```
+## Abstract
 
-## Setup
+Standard image classifiers are trained to predict a single hard label per image, treating any disagreement among human annotators as label noise to be averaged away. This project takes the opposite view: we treat human disagreement as the *signal*. We train a deep neural network to predict the full 10-class probability distribution that approximately 50 human annotators produced for each image in the CIFAR-10H dataset, rather than just its majority class. The result is a model that learns not only what an image contains, but also how ambiguous it is.
 
-Tested with Python 3.10+, PyTorch 2.x, single GPU (T4/V100/A100/RTX-class) or CPU (slow).
+We compare three loss functions under an identical training protocol — KL divergence (the standard baseline), Jensen–Shannon divergence, and a custom composite loss combining KL with an entropy-matching penalty and focal weighting on high-disagreement images — and evaluate them on distribution-level metrics, uncertainty correlation with humans, and top-K retrieval of ambiguous cases.
+
+---
+
+
+## Project objectives
+
+1. Build a CNN that predicts soft annotator distributions rather than hard class labels.
+2. Compare three loss functions, including one custom-designed loss, under matched training conditions.
+3. Evaluate using distribution divergences, entropy correlation with humans, and Precision@K for ambiguity retrieval.
+4. Conduct ablation studies on backbone initialisation, loss function, and prediction head.
+5. Test robustness under annotator subsampling and out-of-distribution image corruptions.
+6. Provide qualitative explanations of model behaviour through Grad-CAM and failure case analysis.
+
+---
+
+## Methodology
+
+### Data
+
+The project uses two complementary datasets. CIFAR-10 provides 50,000 training and 10,000 test images at 32×32 resolution with single hard labels. CIFAR-10H provides soft annotator distributions for the 10,000 CIFAR-10 *test* images, with approximately 50 independent human annotators per image.
+
+The 10,000 CIFAR-10H images are split with a fixed seed into 6,000 training, 2,000 validation, and 2,000 test. The 50,000 CIFAR-10 training images are used only for backbone pretraining, never as soft-label targets — this asymmetry between hard-label data (abundant) and soft-label data (scarce) is a defining constraint of the problem.
+
+Sanity checks confirm that all annotator distributions sum to 1.0 within 1×10⁻⁴ tolerance, and that the majority-vote labels agree with the original CIFAR-10 hard labels on 99.21% of images.
+
+
+### Model architecture
+
+We use a CIFAR-adapted ResNet-18 backbone — a 3×3 stem with no max-pool, replacing the 7×7 stride-2 stem of the standard ImageNet variant which would discard too much spatial information at 32×32 resolution. The backbone produces a 512-dimensional feature vector, which is passed through a linear head to produce 10 logits, then softmax-normalised. Total trainable parameters: 11.17 million.
+
+
+### Loss functions
+
+Three loss functions are compared under identical training conditions (same backbone, optimiser, learning rate schedule, data augmentation, and early stopping criterion). KL divergence serves as the standard baseline for distribution matching. Jensen–Shannon divergence provides a symmetric, bounded alternative. The custom composite loss is defined as `KL(p‖q) + λ·|H(p) − H(q)| + γ·focal_weight(H(p))·KL(p‖q)`, where the entropy term penalises mismatch in the *amount* of disagreement and the focal weight up-weights high-entropy images, which are a minority of the dataset and otherwise underrepresented in the gradient.
+
+
+### Training protocol
+
+The backbone is first pretrained on CIFAR-10 hard labels for 30 epochs, reaching 99.4% accuracy. It is then fine-tuned on the 6,000 CIFAR-10H soft labels for up to 50 epochs with early stopping on validation KL (patience 8). Mixed-precision training is used where supported.
+
+
+### Evaluation
+
+Models are evaluated on the held-out 2,000-image test set using distribution divergences (mean KL, mean JSD, cosine similarity), uncertainty correlation (Pearson and Spearman correlation between predicted and true entropy), and Precision@K for K ∈ {100, 200, 500} — the overlap between the top-K most-uncertain images by predicted entropy and by true human entropy.
+
+
+### Robustness analysis
+
+Two robustness checks are conducted. The annotator subsampling experiment resamples per-image label distributions to simulate evaluation with 5, 10, 20, 30, 40, or 50 annotators per image, testing how the apparent error and apparent ground-truth quality vary with crowd size. The out-of-distribution corruption experiment applies Gaussian noise, Gaussian blur, and contrast reduction at five severity levels each, with predicted entropy tracked as a function of severity.
+
+
+### Explainability
+
+Grad-CAM heatmaps are computed on the final convolutional layer of the backbone for both low-entropy (human-confident) and high-entropy (human-ambiguous) images, allowing direct visual comparison of where the model attends in each case. Failure case analysis selects the test images with the largest absolute mismatch between predicted and true entropy, with side-by-side bar plots of the human and model distributions.
+
+---
+
+## How to run
+
+The project requires Python 3.10+ and PyTorch 2.x. A GPU is strongly recommended — a single Colab T4 is sufficient for the full pipeline; CPU is impractically slow.
 
 ```bash
-# 1. create a fresh environment (recommended)
+# 1. environment setup
 python -m venv .venv
-source .venv/bin/activate                       # Windows: .venv\Scripts\activate
-
-# 2. install dependencies
+source .venv/bin/activate           # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+# 2. one-time CIFAR-10H download
+mkdir -p outputs/data
+wget -O outputs/data/cifar10h-probs.npy \
+  https://github.com/jcpeterson/cifar-10h/raw/master/data/cifar10h-probs.npy
 ```
 
-`requirements.txt` pins the libraries used: torch, torchvision, numpy, pandas, matplotlib, scikit-learn, scipy, seaborn, pyyaml, pot (for EMD), grad-cam, tqdm.
-
-## Data
-
-Two datasets are used together:
-
-* **CIFAR-10** — 50,000 train + 10,000 test images, 32×32, hard labels. Downloaded automatically by torchvision.
-* **CIFAR-10H** — 10,000 soft-label distributions, one per CIFAR-10 *test* image, each from ~50 human annotators. The file used is `cifar10h-probs.npy` (shape `(10000, 10)`, rows sum to 1). Download once from the [CIFAR-10H repo](https://github.com/jcpeterson/cifar-10h) and place it at `data/cifar10h-probs.npy`. The data prep script will check for it and tell you what to do if it is missing.
-
-The 10,000 CIFAR-10H images are split (with a fixed seed) into:
-
-| Partition | Count |
-| --- | --- |
-| Training (soft labels) | 6,000 |
-| Validation | 2,000 |
-| Testing | 2,000 |
-
-The 50,000 CIFAR-10 train images are used **only** for hard-label pretraining or backbone initialisation, never as soft-label targets — this is the data asymmetry the assignment calls out.
-
-## How to run end-to-end
-
-The scripts are numbered and meant to be run in order. Each script writes to `outputs/` so later scripts can pick up its results.
+The pipeline is then executed in order:
 
 ```bash
-# 0. (one-time) download CIFAR-10H probs to outputs/data/cifar10h-probs.npy
-mkdir -p outputs/data
-# wget -O outputs/data/cifar10h-probs.npy https://github.com/jcpeterson/cifar-10h/raw/master/data/cifar10h-probs.npy
-
-# 1. download CIFAR-10, align with CIFAR-10H, run sanity checks, produce data-stage plots
-python scripts/01_prepare_data.py
-
-# 2. train under each loss (KL, JSD, custom composite). Optional: --include-emd for the bonus loss.
-python scripts/02_train_all_losses.py
-
-# 3. ablation studies — picks 3 of {backbone init, loss, training strategy, head}
-python scripts/03_run_ablations.py
-
-# 4. core performance evaluation: distribution metrics, entropy correlations, Precision@K, summary table
-python scripts/04_evaluate_all.py
-
-# 5. robustness — picks 2 of {annotator subsampling, corruptions, class-conditional}
-python scripts/05_robustness.py
-
-# 6. explainability — Grad-CAM on low/high disagreement, failure cases, manual inspection grid
-python scripts/06_explain.py
+python scripts/01_prepare_data.py     # data preparation, sanity checks, dataset plots
+python scripts/02_train_all_losses.py # train under each loss function
+python scripts/03_run_ablations.py    # ablation studies
+python scripts/04_evaluate_all.py     # core test-set evaluation
+python scripts/05_robustness.py       # robustness checks
+python scripts/06_explain.py          # Grad-CAM and failure cases
 ```
 
-All figures land in `outputs/figures/`, all tables in `outputs/tables/`, all checkpoints in `outputs/checkpoints/`.
+All outputs are written to `outputs/`: figures to `outputs/figures/`, tables to `outputs/tables/`, model checkpoints to `outputs/checkpoints/`.
 
-## What is implemented vs. the assignment requirements
+---
 
-| Requirement | Where |
-| --- | --- |
-| Soft-label distribution prediction (not hard classifier) | `src/models.py`, `src/train.py` |
-| CIFAR-10 + CIFAR-10H pipeline + 6k/2k/2k split | `src/data.py`, `scripts/01_prepare_data.py` |
-| Sanity checks (rows sum to 1, alignment, entropy histogram) | `scripts/01_prepare_data.py` |
-| Required data-stage plots (entropy histogram, per-class entropy, confusion-style matrix, low/high entropy grid) | `scripts/01_prepare_data.py` |
-| CNN backbone adapted to 32×32 (CIFAR-style ResNet-18) | `src/models.py` |
-| Architecture diagram + parameter count table | `outputs/figures/architecture.png`, `outputs/tables/param_counts.csv` |
-| KL Divergence (mandatory) | `src/losses.py` |
-| Second standard loss: JSD + cosine + soft-target CE all available | `src/losses.py` |
-| Custom composite loss (KL + entropy-error + focal-style high-disagreement weighting) | `src/losses.py` (`CompositeDisagreementLoss`) |
-| EMD / Wasserstein loss (bonus) | `src/losses.py` |
-| Same training protocol across loss comparisons | `scripts/02_train_all_losses.py` |
-| Loss curves + validation metric curve | `src/viz.py`, written during training |
-| Core performance (KL, JSD, cosine, Pearson/Spearman entropy, Precision@K=100/200/500) | `src/evaluate.py`, `scripts/04_evaluate_all.py` |
-| Summary comparison table across losses | `outputs/tables/loss_comparison.csv` |
-| 3 ablations: backbone init, loss, training strategy | `scripts/03_run_ablations.py` |
-| 2 robustness checks: annotator subsampling, OOD corruptions | `src/robustness.py`, `scripts/05_robustness.py` |
-| Grad-CAM on low/high disagreement images | `src/explain.py`, `scripts/06_explain.py` |
-| Failure case analysis | `scripts/06_explain.py` |
-| Manual disagreement source inspection grid | `scripts/06_explain.py` |
 
-## Notes on choices the assignment asked us to justify
+## Summary of results
 
-* **Backbone**: CIFAR-style ResNet-18 (3×3 stem, no max-pool) rather than ImageNet ResNet-18 — 32×32 inputs lose too much spatial information through the ImageNet 7×7 stride-2 stem and max-pool.
-* **Head**: single linear + temperature-scaled softmax. Compared against an MLP head in the head-architecture ablation.
-* **Hard/soft asymmetry**: the default training strategy is "hard-label pretrain on 50k CIFAR-10 → soft-label fine-tune on 6k CIFAR-10H". This is compared against random init and against soft-label-only training in the training-data-strategy ablation.
-* **Custom loss**: KL + λ·|H(p) − H(q)| + γ·focal weighting on high-entropy images. Justification: pure KL drives mean behaviour but does not pressure the model to match the *shape* of disagreement (entropy), and high-disagreement images are a minority of the dataset and otherwise get drowned out.
+The KL-trained ResNet-18 is the strongest model on the bulk distribution metrics, achieving a test-set KL of 0.267 and Spearman correlation of 0.434 between its predicted entropies and the true human entropies. The custom composite loss is competitive on the bulk metrics and wins on Precision@100 (0.18 vs. 0.15 for KL), confirming that the focal weighting successfully redirects the model's attention toward the long tail of ambiguous images at a small cost to mean performance. The JSD baseline failed to learn meaningfully under our protocol, with its training loss collapsing near zero from the first epoch — a signature of a degenerate optimum.
+
+The annotator-subsampling experiment surfaced a methodological observation that generalises beyond this dataset: the entropy of the resampled "ground truth" labels falls from 0.212 (50 annotators) to 0.140 (5 annotators) as the crowd shrinks, while the apparent KL of the model rises from 0.328 to 0.386. The model itself does not change — it is the noisier evaluation target that drives the apparent error. Soft-label models should therefore be benchmarked against the largest annotator pool available.
+
+The corruption analysis showed that the model handles Gaussian blur and contrast reduction gracefully, with predicted entropy rising monotonically with severity. Under Gaussian noise, however, predicted entropy peaks at moderate severity and then falls — an indication that at high noise levels the model becomes confidently wrong rather than appropriately uncertain, marking a clear target for future work.
+
+Full results, training curves, ablation tables, and qualitative figures are available in `outputs/` and discussed in detail in the accompanying project report.
+
+---
+
 
 ## Reproducibility
 
-Seed is set in `src/utils.py::set_seed` and read from `configs/default.yaml`. cuDNN benchmarking is disabled when `deterministic: true` (slower but reproducible).
+The random seed is set in `configs/default.yaml` and applied via `src/utils.py::set_seed`. With `deterministic: true`, cuDNN benchmarking is disabled, ensuring bit-for-bit reproducibility at a small cost to runtime.
+
+---
