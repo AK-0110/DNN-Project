@@ -29,7 +29,7 @@ We compare three loss functions under an identical training protocol — KL dive
 
 The project uses two complementary datasets. CIFAR-10 provides 50,000 training and 10,000 test images at 32×32 resolution with single hard labels. CIFAR-10H provides soft annotator distributions for the 10,000 CIFAR-10 *test* images, with approximately 50 independent human annotators per image.
 
-The 10,000 CIFAR-10H images are split with a fixed seed into 6,000 training, 2,000 validation, and 2,000 test. The 50,000 CIFAR-10 training images are used only for backbone pretraining, never as soft-label targets — this asymmetry between hard-label data (abundant) and soft-label data (scarce) is a defining constraint of the problem.
+The 10,000 CIFAR-10H images are split with a fixed seed into 6,000 training, 2,000 validation, and 2,000 test. The 50,000 CIFAR-10 training images are used only for backbone pretraining, never as soft-label targets, this asymmetry between hard-label data (abundant) and soft-label data (scarce) is a defining constraint of the problem.
 
 Sanity checks confirm that all annotator distributions sum to 1.0 within 1×10⁻⁴ tolerance, and that the majority-vote labels agree with the original CIFAR-10 hard labels on 99.21% of images.
 
@@ -96,10 +96,9 @@ All outputs are written to `outputs/`: figures to `outputs/figures/`, tables to 
 
 ---
 
-
 ## Summary of results
 
-The KL-trained ResNet-18 is the strongest model on the bulk distribution metrics, achieving a test-set KL of 0.267 and Spearman correlation of 0.434 between its predicted entropies and the true human entropies. The custom composite loss is competitive on the bulk metrics and wins on Precision@100 (0.18 vs. 0.15 for KL), confirming that the focal weighting successfully redirects the model's attention toward the long tail of ambiguous images at a small cost to mean performance. The JSD baseline failed to learn meaningfully under our protocol, with its training loss collapsing near zero from the first epoch — a signature of a degenerate optimum.
+The KL-trained ResNet-18 is the strongest model on the bulk distribution metrics, achieving a test-set KL of 0.267 and Spearman correlation of 0.434 between its predicted entropies and the true human entropies. The custom composite loss is competitive on the bulk metrics and wins on Precision@100 (0.18 vs. 0.15 for KL), confirming that the focal weighting successfully redirects the model's attention toward the long tail of ambiguous images at a small cost to mean performance. The JSD baseline failed to learn meaningfully under our protocol, with its training loss collapsing near zero from the first epoch- a signature of a degenerate optimum.
 
 The annotator-subsampling experiment surfaced a methodological observation that generalises beyond this dataset: the entropy of the resampled "ground truth" labels falls from 0.212 (50 annotators) to 0.140 (5 annotators) as the crowd shrinks, while the apparent KL of the model rises from 0.328 to 0.386. The model itself does not change — it is the noisier evaluation target that drives the apparent error. Soft-label models should therefore be benchmarked against the largest annotator pool available.
 
@@ -108,10 +107,5 @@ The corruption analysis showed that the model handles Gaussian blur and contrast
 Full results, training curves, ablation tables, and qualitative figures are available in `outputs/` and discussed in detail in the accompanying project report.
 
 ---
-
-
-## Reproducibility
-
-The random seed is set in `configs/default.yaml` and applied via `src/utils.py::set_seed`. With `deterministic: true`, cuDNN benchmarking is disabled, ensuring bit-for-bit reproducibility at a small cost to runtime.
 
 ---
