@@ -27,11 +27,6 @@ import torch.nn.functional as F
 
 EPS = 1e-12
 
-
-# ---------------------------------------------------------------------------
-# Standard losses.
-# ---------------------------------------------------------------------------
-
 class KLDivLoss(nn.Module):
     """KL(p || q) where p = target, q = softmax(logits).
 
@@ -118,11 +113,6 @@ class EMDLoss(nn.Module):
         emd = (cdf_p - cdf_q).abs().sum(dim=-1)
         return emd.mean()
 
-
-# ---------------------------------------------------------------------------
-# Custom composite loss.
-# ---------------------------------------------------------------------------
-
 class CompositeDisagreementLoss(nn.Module):
     """KL + entropy-error penalty + focal weighting on high-disagreement images.
 
@@ -172,11 +162,6 @@ class CompositeDisagreementLoss(nn.Module):
 
         loss_per = focal_w * (kl_per + self.lambda_h * entropy_err)
         return loss_per.mean()
-
-
-# ---------------------------------------------------------------------------
-# Registry.
-# ---------------------------------------------------------------------------
 
 LOSS_REGISTRY = {
     "kl": KLDivLoss,

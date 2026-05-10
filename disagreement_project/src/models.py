@@ -19,11 +19,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-# ---------------------------------------------------------------------------
-# CIFAR-style ResNet-18.
-# ---------------------------------------------------------------------------
-
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -84,10 +79,6 @@ class ResNet18CIFAR(nn.Module):
         return x
 
 
-# ---------------------------------------------------------------------------
-# Heads.
-# ---------------------------------------------------------------------------
-
 class LinearHead(nn.Module):
     def __init__(self, in_dim: int = 512, num_classes: int = 10):
         super().__init__()
@@ -129,10 +120,6 @@ class TemperatureHead(nn.Module):
         T = self.log_t.exp().clamp(min=1e-2, max=1e2)
         return logits / T
 
-
-# ---------------------------------------------------------------------------
-# Full model.
-# ---------------------------------------------------------------------------
 
 class DisagreementModel(nn.Module):
     """Backbone + head. forward() returns logits."""

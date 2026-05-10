@@ -14,11 +14,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-
-# ---------------------------------------------------------------------------
-# Grad-CAM (lightweight implementation, no external dependency).
-# ---------------------------------------------------------------------------
-
 class GradCAM:
     """Class activation map via gradients of a target class wrt activations
     of a chosen feature layer.
@@ -70,11 +65,6 @@ class GradCAM:
         cam = cam.squeeze().cpu().numpy()
         cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
         return cam
-
-
-# ---------------------------------------------------------------------------
-# Failure case selection.
-# ---------------------------------------------------------------------------
 
 def select_failure_cases(artifacts: dict, n: int = 8) -> np.ndarray:
     """Pick n test images with the largest |H(p) - H(q)|.
